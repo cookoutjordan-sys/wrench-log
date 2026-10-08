@@ -4,4 +4,4 @@
 //  It starts with https://script.google.com/macros/s/ and ends with /exec
 // =====================================================================
 
-window.WRENCH_LOG_SCRIPT_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
+window.WRENCH_LOG_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzygYqv0ByYYwqw8EIgkgPwBGEEFVQB16QkK6LhlkAZduQV5hBiZZj0C9zmPqcGwXQ/exec";
