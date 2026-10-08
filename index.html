@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wrench Log</title>
+<meta name="theme-color" content="#141619">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wrench Log">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="config.js"></script>
+<style>
+:root {
+  --bg: #E8E9E4; --panel: #F7F7F3; --ink: #1B1E22; --muted: #5B6169; --line: #CDD0C9; --field: #FFFFFF;
+  --accent: #F2B705; --accent-ink: #1B1E22; --accent-soft: #F7E7A8; --ok: #2D7A4D; --warn: #A9521C; --rec: #C8372D;
+  --stripe-dark: #1B1E22;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141619; --panel: #1D2024; --ink: #ECEDE9; --muted: #9AA0A7; --line: #2F333A; --field: #24282D;
+    --accent: #F2B705; --accent-ink: #141619; --accent-soft: #3A3215; --ok: #5FBF85; --warn: #E08A52; --rec: #E5534B;
+    --stripe-dark: #0C0D0F; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+.app { max-width: 560px; min-height: 100%; margin: 0 auto; padding-inline: 16px; padding-block: env(safe-area-inset-top, 0px) calc(32px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; }
+
+.hazard { height: 8px; background: repeating-linear-gradient(-45deg, var(--accent) 0 12px, var(--stripe-dark) 12px 24px); margin-inline: -16px; flex-shrink: 0; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 24px; letter-spacing: 0.04em; text-transform: uppercase; margin: 0; line-height: 1; }
+.bar-btn { font-family: var(--display); font-weight: 600; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; cursor: pointer; }
+
+.view { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+.view h2 { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: 0.03em; text-transform: uppercase; margin: 0; }
+.center { align-items: center; justify-content: center; text-align: center; gap: 22px; padding-bottom: 48px; }
+
+.mic, .stop { width: min(56vw, 200px); aspect-ratio: 1; max-width: 100%; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center; transition: transform 0.12s ease; }
+.mic { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 10px var(--panel), 0 0 0 11px var(--line), inset 0 -6px 0 rgba(0,0,0,0.16); }
+.stop { background: var(--rec); color: #fff; box-shadow: 0 0 0 10px var(--panel), 0 0 0 11px var(--line); animation: pulse 1.6s ease-in-out infinite; }
+.mic:active, .stop:active { transform: scale(0.97); }
+.mic svg { width: 42%; height: auto; }
+.stop span { width: 30%; aspect-ratio: 1; background: #fff; border-radius: 6px; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 10px var(--panel), 0 0 0 11px var(--line); } 50% { box-shadow: 0 0 0 10px var(--panel), 0 0 0 22px rgba(200, 55, 45, 0.25); } }
+.big-label { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; margin: 6px 0 0; }
+.sub { margin: 0; color: var(--muted); font-size: 14px; }
+.timer { font-family: var(--mono); font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; margin: 0; }
+.toast { font-size: 14px; font-weight: 600; color: var(--ok); min-height: 1.4em; margin: 0; max-width: 34ch; }
+.toast.err { color: var(--warn); }
+.link { font: inherit; font-size: 15px; color: var(--muted); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 6px; }
+
+textarea, input[type=text], input[type=password], input[type=datetime-local] { width: 100%; font: inherit; color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; }
+input[type=datetime-local] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; min-height: 48px; text-align: left; }
+input[type=datetime-local]::-webkit-date-and-time-value { text-align: left; }
+textarea { min-height: 180px; resize: vertical; font-size: 18px; line-height: 1.4; }
+textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.hint { margin: 0; font-size: 14px; color: var(--muted); }
+.hint b { color: var(--ink); }
+
+.btn { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase; border: 0; border-radius: 4px; padding: 14px 18px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.18); }
+.btn-primary[disabled] { opacity: 0.65; cursor: progress; }
+.btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn-small { font-size: 15px; padding: 8px 12px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row .btn { flex: 1 1 130px; }
+.row .btn-primary { flex-grow: 2; }
+.btn:focus-visible, .bar-btn:focus-visible, .mic:focus-visible, .stop:focus-visible, .link:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.status { font-size: 14px; color: var(--muted); min-height: 1.3em; margin: 0; }
+.status.err { color: var(--warn); }
+.spin { width: 44px; height: 44px; border: 4px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.spin.sm { width: 16px; height: 16px; border-width: 2px; border-color: currentColor; border-right-color: transparent; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.review-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.source { font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.said { font-size: 13px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; margin: 0; font-style: italic; overflow-wrap: anywhere; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid .full { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.field input.unit { font-family: var(--mono); font-weight: 600; font-size: 22px; }
+.field input.missing { border-style: dashed; }
+.unit-type { font-size: 12px; font-weight: 600; color: var(--ok); }
+.unit-type.bad { color: var(--warn); font-weight: 500; }
+
+.log-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.entries { display: flex; flex-direction: column; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.entry { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; display: grid; grid-template-columns: 78px 1fr; overflow: hidden; }
+.tag { background: var(--ink); color: var(--panel); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 4px; gap: 2px; text-align: center; }
+.tag b { font-family: var(--mono); font-weight: 600; font-size: 24px; line-height: 1; word-break: break-all; }
+.tag b.mid { font-size: 18px; }
+.tag b.long { font-size: 14px; word-break: normal; }
+.tag span { font-family: var(--display); font-weight: 600; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.body dl { margin: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; row-gap: 2px; }
+.body dt { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+.body dd { margin: 0; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.code { font-family: var(--mono); font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--ink); border-radius: 3px; padding: 1px 6px; }
+.empty { text-align: center; color: var(--muted); padding: 24px 12px; border: 1px dashed var(--line); border-radius: 6px; margin: 0; }
+@media (max-width: 380px) { .grid { grid-template-columns: 1fr; } .entry { grid-template-columns: 64px 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hazard" aria-hidden="true"></div>
+  <header class="bar">
+    <p class="brand">Wrench Log</p>
+    <button class="bar-btn" id="logBtn" type="button" hidden>Log</button>
+  </header>
+
+  <!-- Shop code (first time only) -->
+  <section class="view center" id="vCode" hidden>
+    <h2>Enter shop code</h2>
+    <p class="sub" id="codeHelp">Ask whoever set up Wrench Log for the code. You only enter it once on this phone.</p>
+    <input type="password" id="codeInput" autocomplete="off" aria-label="Shop code" style="max-width:280px;text-align:center;font-size:20px">
+    <button class="btn btn-primary" id="codeBtn" type="button" style="min-width:200px">Continue</button>
+    <p class="toast err" id="codeMsg" role="status"></p>
+  </section>
+
+  <!-- Home: just the mic -->
+  <main class="view center" id="vHome" hidden>
+    <button class="mic" id="micBtn" type="button" aria-label="Start recording a job">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21.5M8.5 21.5h7"/></svg>
+    </button>
+    <div>
+      <p class="big-label">Tap to log a job</p>
+      <p class="sub">Say the unit first</p>
+    </div>
+    <p class="toast" id="toast" role="status"></p>
+    <button class="link" id="typeLink" type="button">Type it instead</button>
+  </main>
+
+  <!-- Recording -->
+  <section class="view center" id="vRec" hidden>
+    <button class="stop" id="stopBtn" type="button" aria-label="Stop recording"><span></span></button>
+    <div>
+      <p class="timer" id="timer">0:00</p>
+      <p class="big-label">Listening · tap to stop</p>
+      <p class="sub">Unit first: "7136…", "C-95…", "Promo 2…", "PJ 12…"</p>
+    </div>
+    <button class="link" id="recCancel" type="button">Cancel</button>
+  </section>
+
+  <!-- Typing -->
+  <section class="view" id="vTalk" hidden>
+    <h2>Type the job</h2>
+    <p class="hint"><b>Start with the unit</b>, like "7136", "C-95", "Promo 2" or "PJ 12".</p>
+    <textarea id="job" placeholder="7136, changed the fuel pump, fuel pressure was low, code P0087" aria-label="What you did"></textarea>
+    <div class="row">
+      <button class="btn btn-primary" id="submitBtn" type="button">Submit</button>
+      <button class="btn btn-ghost" id="talkCancel" type="button">Cancel</button>
+    </div>
+    <p class="status" id="talkStatus" role="status"></p>
+  </section>
+
+  <!-- Working -->
+  <section class="view center" id="vWork" hidden>
+    <div class="spin" aria-hidden="true"></div>
+    <p class="big-label" id="workLabel">Reading it</p>
+  </section>
+
+  <!-- Review -->
+  <section class="view" id="vReview" hidden>
+    <div class="card">
+      <div class="review-head">
+        <h2>Check it</h2>
+        <span class="source" id="source"></span>
+      </div>
+      <p class="said" id="said"></p>
+      <div class="grid">
+        <div class="field full"><label for="fUnit">Unit</label><input type="text" id="fUnit" class="unit" autocomplete="off" autocapitalize="characters"><span class="unit-type" id="unitType"></span></div>
+        <div class="field full"><label for="fAt">Logged</label><input type="datetime-local" id="fAt"></div>
+        <div class="field full"><label for="fIssue">Issue</label><input type="text" id="fIssue" autocomplete="off"></div>
+        <div class="field full"><label for="fFix">Fix</label><input type="text" id="fFix" autocomplete="off"></div>
+        <div class="field"><label for="fCodes">Codes</label><input type="text" id="fCodes" autocomplete="off" placeholder="None"></div>
+        <div class="field"><label for="fParts">Parts</label><input type="text" id="fParts" autocomplete="off" placeholder="None"></div>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" id="saveBtn" type="button">Save</button>
+        <button class="btn btn-ghost" id="redoBtn" type="button">Redo</button>
+      </div>
+      <p class="status" id="saveStatus" role="status"></p>
+    </div>
+  </section>
+
+  <!-- Log -->
+  <section class="view" id="vLog" hidden>
+    <div class="log-head">
+      <h2>Last 25 jobs</h2>
+      <div class="row">
+        <a class="btn btn-ghost btn-small" id="sheetLink" href="#" target="_blank" rel="noopener" hidden>Open sheet</a>
+        <button class="btn btn-ghost btn-small" id="backBtn" type="button">Done</button>
+      </div>
+    </div>
+    <ul class="entries" id="entries"></ul>
+    <p class="status" id="logStatus" role="status"></p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var SCRIPT_URL = String(window.WRENCH_LOG_SCRIPT_URL || "");
+  var CODE_KEY = "wrenchlog.code";
+  var shopCode = "";
+  try { shopCode = localStorage.getItem(CODE_KEY) || ""; } catch (e) {}
+
+  // =====================================================================
+  // UNIT NUMBER RULES — the first thing said is always the unit
+  //   Meat trucks:              any number       (3, 40, 7136)
+  //   Maintenance vans/trucks:  C- plus a number (C-3, C-95, C-512)
+  //   Promo vans:               Promo 1–4        (Promo 2)
+  //   Pallet jacks:             PJ plus a number (PJ12)
+  // =====================================================================
+  var TYPES = ["Meat truck", "Maintenance", "Promo van", "Pallet jack", "Other"];
+  var ONES = { zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 };
+  var TEENS = { ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+  var TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+
+  function bare(w) { return (w || "").toLowerCase().replace(/[.,;:]$/, ""); }
+  function punct(w) { return /[.,;:]$/.test(w || "") ? w.slice(-1) : ""; }
+
+  // Spoken numbers at the start become digits, and back-to-back spoken numbers join:
+  // "seventy one thirty six" -> "7136", "C five twelve" -> "C 512", "one hundred five" -> "105"
+  function wordsToDigits(text) {
+    var parts = text.split(/(\s+)/);
+    var words = [], seps = [];
+    for (var i = 0; i < parts.length; i += 2) { words.push(parts[i]); seps.push(parts[i + 1] || ""); }
+    var out = [], w = 0, LIMIT = 12;
+    while (w < words.length) {
+      var low = bare(words[w]);
+      if (w < LIMIT && (low in TENS || low in TEENS || low in ONES)) {
+        var used = 1, val, tr = punct(words[w]);
+        if (low in TENS) {
+          val = TENS[low];
+          var nx = bare(words[w + 1]);
+          if (!tr && nx in ONES && ONES[nx] > 0) { val += ONES[nx]; tr = punct(words[w + 1]); used = 2; }
+        } else if (low in TEENS) val = TEENS[low];
+        else val = ONES[low];
+        if (!tr && bare(words[w + used]) === "hundred" && val < 10) {
+          tr = punct(words[w + used]); val *= 100; used++;
+          if (!tr && bare(words[w + used]) === "and") used++;
+          var r = bare(words[w + used]);
+          if (!tr && (r in TEENS || r in TENS || (r in ONES && ONES[r] > 0))) {
+            tr = punct(words[w + used]);
+            if (r in TEENS) { val += TEENS[r]; used++; }
+            else if (r in TENS) {
+              val += TENS[r]; used++;
+              var r2 = bare(words[w + used]);
+              if (!tr && r2 in ONES && ONES[r2] > 0) { val += ONES[r2]; tr = punct(words[w + used]); used++; }
+            } else { val += ONES[r]; used++; }
+          }
+        }
+        var last = out[out.length - 1];
+        if (last && last.num && !last.tr && /^\s+$/.test(last.sep)) {
+          last.text += String(val); last.tr = tr; last.sep = seps[w + used - 1];
+        } else {
+          out.push({ text: String(val), num: true, tr: tr, sep: seps[w + used - 1] });
+        }
+        w += used;
+      } else {
+        out.push({ text: words[w], num: false, tr: "", sep: seps[w] });
+        w++;
+      }
+    }
+    return out.map(function (o) { return o.text + o.tr + o.sep; }).join("");
+  }
+
+  var LEAD_FILLER = /^\s*(?:(?:ok(?:ay)?|um+|uh+|so|alright|all right|and|on|for|number|unit|#)[\s,.:;-]+)*/i;
+  var PROMO_WORDS = { one: 1, won: 1, two: 2, to: 2, too: 2, three: 3, four: 4, for: 4 };
+
+  function parseUnit(text) {
+    var s = wordsToDigits(String(text || "").replace(LEAD_FILLER, ""));
+    var m, unit, type;
+    if ((m = s.match(/^\s*(?:pallet\s*jack\s*)?(?:p\.?\s*j\.?|pee\s*jay)\s*(?:-|#|dash)?\s*(\d+)/i)) ||
+        (m = s.match(/^\s*pallet\s*jack\s*(?:-|#)?\s*(\d+)/i))) {
+      unit = "PJ" + m[1]; type = "Pallet jack";
+    } else if ((m = s.match(/^\s*promo(?:tional)?(?:\s*(?:van+s?|ban|vehicle))?\s*(?:-|#)?\s*(\d{1,2}|one|won|two|to|too|three|four|for)\b/i))) {
+      unit = "Promo " + (/^\d/.test(m[1]) ? m[1] : PROMO_WORDS[m[1].toLowerCase()]); type = "Promo van";
+    } else if ((m = s.match(/^\s*(?:maintenance\s*(?:van|truck)?\s*)?(?:c|see|sea|cee)\.?\s*(?:-|#|dash)?\s*(\d+)/i))) {
+      unit = "C-" + m[1]; type = "Maintenance";
+    } else if ((m = s.match(/^\s*(?:meat\s*truck\s*|truck\s*)?#?\s*(\d+)/i))) {
+      unit = m[1]; type = "Meat truck";
+    } else {
+      return null;
+    }
+    return { unit: unit, type: type, rest: s.slice(m[0].length).replace(/^[\s,.:;-]+/, "") };
+  }
+
+  function typeOfUnit(u) {
+    u = String(u || "").trim();
+    if (/^PJ\d+$/i.test(u)) return "Pallet jack";
+    if (/^C-\d+$/i.test(u)) return "Maintenance";
+    if (/^Promo \d+$/i.test(u)) return "Promo van";
+    if (/^\d+$/.test(u)) return "Meat truck";
+    return "Other";
+  }
+  // "pj 12" -> "PJ12", "see 95" / "C95" -> "C-95", "promo two" -> "Promo 2"
+  function formatUnit(v) {
+    var p = parseUnit(v);
+    if (p && !p.rest) return p.unit;
+    return String(v || "").trim().toUpperCase();
+  }
+
+  // ---- backup rules for issue and fix, used when AI isn't available ----
+  var FIX_VERBS = "replaced|changed|swapped|installed|repaired|adjusted|rebuilt|cleaned|fixed|tightened|reset|charged|lubed|greased|welded|patched|removed|deleted|disabled|programmed|flashed|updated|flushed|bled|topped off|rewired";
+  function clean(s) { s = s.trim().replace(/^(the|a|an)\s+/i, ""); return s.charAt(0).toUpperCase() + s.slice(1); }
+  function ruleParse(rest) {
+    var t = " " + rest.replace(/\s+/g, " ").trim() + " ";
+    var out = { issue: "", fix: "", codes: [], parts: [] };
+    out.codes = (t.match(/\b[PBCU][0-3][0-9A-F]{3}\b/gi) || []).map(function (c) { return c.toUpperCase(); });
+    var noCodes = t.replace(/,?\s*\b(?:codes?|dtcs?)\b\s*[PBCU][0-3][0-9A-F]{3}(?:\s*(?:,|and)\s*[PBCU][0-3][0-9A-F]{3})*/gi, "");
+    var iss = noCodes.match(/\b(?:because|due to|since|cause)\s+(?:it\s+(?:had|was|has)\s+|of\s+)?(.+?)(?=[.;,]|\s*$)/i);
+    if (iss) out.issue = clean(iss[1]);
+    var fx = noCodes.match(/\bby\s+(.+?)(?=\s+(?:because|due to|since)\b|[.;,]|\s*$)/i) ||
+             noCodes.match(new RegExp("\\b((?:" + FIX_VERBS + ")\\s+.+?)(?=\\s+(?:because|due to|since)\\b|[.;,]|\\s*$)", "i"));
+    if (fx) out.fix = clean(fx[1]);
+    if (!out.issue) {
+      var fixVerb = new RegExp("^\\s*(?:" + FIX_VERBS + ")\\b", "i");
+      var clauses = noCodes.split(/[,.;]/).map(function (c) { return c.trim(); }).filter(Boolean);
+      for (var i = 0; i < clauses.length; i++) {
+        if (!fixVerb.test(clauses[i])) { out.issue = clean(clauses[i].replace(/^(?:it|they)\s+(?:was|were|had|has|is|are)\s+/i, "")); break; }
+      }
+    }
+    return out;
+  }
+
+
+  // ---- talking to the Google Script ----
+  async function call(payload) {
+    payload.code = shopCode;
+    var res;
+    try {
+      res = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
+    } catch (e) {
+      return { ok: false, message: "No connection. Check your signal and try again." };
+    }
+    try { return await res.json(); }
+    catch (e) { return { ok: false, message: "The Google Script didn't answer right. Check the link in config.js." }; }
+  }
+
+  // ---- screens ----
+  var VIEWS = ["vCode", "vHome", "vRec", "vTalk", "vWork", "vReview", "vLog"];
+  function show(id) {
+    VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
+    $("logBtn").hidden = !(id === "vHome");
+    window.scrollTo(0, 0);
+  }
+  var toastTimer;
+  function toast(msg, isErr) {
+    var t = $("toast");
+    t.textContent = msg; t.classList.toggle("err", !!isErr);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.textContent = ""; }, isErr ? 8000 : 4000);
+  }
+
+  // ---- shop code ----
+  function needsSetup() { return !/^https:\/\/script\.google(usercontent)?\.com\//.test(SCRIPT_URL); }
+  $("codeBtn").addEventListener("click", async function () {
+    var c = $("codeInput").value.trim();
+    if (!c) return;
+    $("codeBtn").disabled = true; $("codeMsg").textContent = "Checking…";
+    shopCode = c;
+    var r = await call({ action: "ping" });
+    $("codeBtn").disabled = false;
+    if (r.ok) {
+      try { localStorage.setItem(CODE_KEY, c); } catch (e) {}
+      $("codeMsg").textContent = "";
+      show("vHome");
+    } else {
+      shopCode = "";
+      $("codeMsg").textContent = r.error === "wrong_code" ? "That code isn't right. Check SHOP_CODE in the Google Script settings." : (r.message || "Couldn't reach the Google Script.");
+    }
+  });
+  function handleWrongCode(r) {
+    if (r && r.error === "wrong_code") {
+      try { localStorage.removeItem(CODE_KEY); } catch (e) {}
+      shopCode = "";
+      show("vCode");
+      $("codeMsg").textContent = "The shop code changed. Enter the new one.";
+      return true;
+    }
+    return false;
+  }
+
+  // ---- recording ----
+  var rec = null, chunks = [], stream = null, tick = null, startedAt = 0, cancelled = false;
+  var MAX_SECONDS = 90;
+  function pickMime() {
+    var types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+    if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
+    for (var i = 0; i < types.length; i++) if (MediaRecorder.isTypeSupported(types[i])) return types[i];
+    return "";
+  }
+  function stopStream() { if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; } }
+
+  $("micBtn").addEventListener("click", async function () {
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      toast("This browser can't record. Type it instead.", true);
+      return openTyping();
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      toast("The mic is blocked. Allow it in your phone's settings for this site, or type it instead.", true);
+      return;
+    }
+    var mime = pickMime();
+    try { rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
+    catch (e) { stopStream(); toast("Couldn't start recording. Type it instead.", true); return openTyping(); }
+    chunks = []; cancelled = false;
+    rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    rec.onstop = onRecorded;
+    rec.start();
+    startedAt = Date.now();
+    $("timer").textContent = "0:00";
+    tick = setInterval(function () {
+      var s = Math.floor((Date.now() - startedAt) / 1000);
+      $("timer").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+      if (s >= MAX_SECONDS) stopRecording();
+    }, 250);
+    show("vRec");
+  });
+  function stopRecording() {
+    clearInterval(tick);
+    if (rec && rec.state !== "inactive") rec.stop();
+  }
+  $("stopBtn").addEventListener("click", stopRecording);
+  $("recCancel").addEventListener("click", function () { cancelled = true; stopRecording(); show("vHome"); });
+
+  function toBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result).split(",")[1] || ""); };
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+  async function onRecorded() {
+    stopStream();
+    if (cancelled) return;
+    var seconds = (Date.now() - startedAt) / 1000;
+    var type = (rec && rec.mimeType) || chunks[0] && chunks[0].type || "audio/webm";
+    var blob = new Blob(chunks, { type: type });
+    if (seconds < 1 || blob.size < 1000) { show("vHome"); toast("That was too short. Hold on a second longer.", true); return; }
+    $("workLabel").textContent = "Reading it";
+    show("vWork");
+    var b64 = await toBase64(blob);
+    var r = await call({ action: "read", audio: b64, mime: type });
+    afterRead(r, null);
+  }
+
+  // ---- typing ----
+  function openTyping() { $("talkStatus").textContent = ""; show("vTalk"); $("job").focus(); }
+  $("typeLink").addEventListener("click", openTyping);
+  $("talkCancel").addEventListener("click", function () { $("job").value = ""; show("vHome"); });
+  $("submitBtn").addEventListener("click", async function () {
+    var text = $("job").value.trim();
+    if (!text) { $("talkStatus").textContent = "Type what you did first, starting with the unit."; $("talkStatus").classList.add("err"); return; }
+    $("workLabel").textContent = "Reading it";
+    show("vWork");
+    var r = await call({ action: "read", text: text });
+    afterRead(r, text);
+  });
+
+  // ---- after the Google Script reads it ----
+  function afterRead(r, typedText) {
+    if (handleWrongCode(r)) return;
+    if (!r || !r.ok) {
+      show(typedText ? "vTalk" : "vHome");
+      var msg = (r && r.message) || "Something went wrong. Try again.";
+      if (typedText) { $("talkStatus").textContent = msg; $("talkStatus").classList.add("err"); }
+      else toast(msg, true);
+      return;
+    }
+    var text = r.transcript || typedText || "";
+    var lead = parseUnit(text);
+    var fields, source;
+    if (r.entry) {
+      var e = r.entry;
+      fields = { unit: e.unit_number || "", issue: e.issue || "", fix: e.fix || "", codes: e.codes || [], parts: e.parts || [] };
+      source = "Read by AI";
+    } else {
+      var rp = ruleParse(lead ? lead.rest : text);
+      fields = { unit: "", issue: rp.issue, fix: rp.fix, codes: rp.codes, parts: rp.parts };
+      source = "Read by backup rules";
+    }
+    // Your unit rules always win over the AI's guess.
+    fields.unit = lead ? lead.unit : (fields.unit ? formatUnit(fields.unit) : "");
+    openReview(text, fields, source);
+  }
+
+  // ---- review ----
+  function localInputValue(d) {
+    var p = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+  function setField(id, val) {
+    var el = $(id);
+    el.value = val;
+    el.classList.toggle("missing", !val);
+    if (id !== "fCodes" && id !== "fParts") el.placeholder = val ? "" : "Not mentioned";
+  }
+  function showUnitType() {
+    var v = $("fUnit").value.trim(), out = $("unitType");
+    if (!v) { out.textContent = "Add the unit"; out.classList.add("bad"); return; }
+    var type = typeOfUnit(formatUnit(v));
+    out.classList.toggle("bad", type === "Other");
+    out.textContent = type === "Other" ? "Not a known format (7136, C-95, Promo 2, PJ12)" : type;
+  }
+  function openReview(text, f, source) {
+    $("said").textContent = "“" + text + "”";
+    $("source").textContent = source;
+    setField("fUnit", f.unit);
+    setField("fIssue", f.issue);
+    setField("fFix", f.fix);
+    setField("fCodes", f.codes.join(", "));
+    setField("fParts", f.parts.join(", "));
+    $("fAt").value = localInputValue(new Date());
+    $("saveStatus").textContent = "";
+    showUnitType();
+    show("vReview");
+  }
+  ["fUnit", "fIssue", "fFix", "fCodes", "fParts"].forEach(function (id) {
+    $(id).addEventListener("input", function () { this.classList.toggle("missing", !this.value.trim()); });
+  });
+  $("fUnit").addEventListener("input", showUnitType);
+  $("fUnit").addEventListener("blur", function () { if (this.value.trim()) { this.value = formatUnit(this.value); showUnitType(); } });
+  $("redoBtn").addEventListener("click", function () { show("vHome"); });
+
+  function splitList(s) { return s.split(/\s*,\s*/).map(function (x) { return x.trim(); }).filter(Boolean); }
+  $("saveBtn").addEventListener("click", async function () {
+    var unit = formatUnit($("fUnit").value);
+    var st = $("saveStatus");
+    if (!unit) { $("fUnit").focus(); st.textContent = "Add the unit number first."; st.classList.add("err"); return; }
+    var d = $("fAt").value ? new Date($("fAt").value) : new Date();
+    var btn = $("saveBtn");
+    btn.disabled = true; btn.innerHTML = '<span class="spin sm" aria-hidden="true"></span>Saving';
+    st.textContent = ""; st.classList.remove("err");
+    var r = await call({ action: "save", entry: {
+      date: d.toLocaleDateString("en-US"),
+      time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+      unit: unit,
+      issue: $("fIssue").value.trim(),
+      fix: $("fFix").value.trim(),
+      codes: splitList($("fCodes").value).map(function (c) { return c.toUpperCase(); }),
+      parts: splitList($("fParts").value),
+      said: $("said").textContent.replace(/^“|”$/g, "")
+    } });
+    btn.disabled = false; btn.textContent = "Save";
+    if (handleWrongCode(r)) return;
+    if (!r.ok) { st.textContent = (r.message || "Couldn't save.") + " Your entry is still here. Tap Save to try again."; st.classList.add("err"); return; }
+    $("job").value = "";
+    show("vHome");
+    toast("Saved " + unit + " to the sheet");
+  });
+
+  // ---- log ----
+  var TAG_LABEL = { "Meat truck": "Meat", "Maintenance": "Maint", "Promo van": "Van", "Pallet jack": "Jack", "Other": "Other" };
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  $("logBtn").addEventListener("click", async function () {
+    show("vLog");
+    var ul = $("entries"), st = $("logStatus");
+    ul.textContent = ""; st.classList.remove("err");
+    st.innerHTML = '<span class="spin sm" aria-hidden="true" style="display:inline-block;vertical-align:-3px;margin-right:6px"></span>Loading from the sheet…';
+    var r = await call({ action: "recent" });
+    if (handleWrongCode(r)) return;
+    if (!r.ok) { st.textContent = r.message || "Couldn't load the log."; st.classList.add("err"); return; }
+    st.textContent = "";
+    if (r.sheetUrl) { $("sheetLink").href = r.sheetUrl; $("sheetLink").hidden = false; }
+    if (!r.rows.length) { var li0 = el("li"); li0.appendChild(el("p", "empty", "No jobs in the sheet yet.")); ul.appendChild(li0); return; }
+    r.rows.forEach(function (e) {
+      var li = el("li", "entry"), tag = el("div", "tag"), u = e.unit || "—";
+      tag.appendChild(el("b", u.length > 6 ? "long" : u.length > 4 ? "mid" : null, u));
+      tag.appendChild(el("span", null, TAG_LABEL[e.type] || e.type));
+      li.appendChild(tag);
+      var body = el("div", "body"), dl = el("dl");
+      dl.appendChild(el("dt", null, "Issue")); dl.appendChild(el("dd", null, e.issue || "—"));
+      dl.appendChild(el("dt", null, "Fix")); dl.appendChild(el("dd", null, e.fix || "—"));
+      body.appendChild(dl);
+      var meta = el("div", "meta");
+      splitList(e.codes || "").forEach(function (c) { meta.appendChild(el("span", "code", c)); });
+      meta.appendChild(el("span", null, (e.date || "") + " " + (e.time || "")));
+      body.appendChild(meta);
+      li.appendChild(body);
+      ul.appendChild(li);
+    });
+  });
+  $("backBtn").addEventListener("click", function () { show("vHome"); });
+
+  // ---- start ----
+  if (needsSetup()) {
+    show("vCode");
+    $("codeHelp").textContent = "Almost there: config.js still needs your Google Script link. See START-HERE step 6.";
+    $("codeInput").hidden = true; $("codeBtn").hidden = true;
+  } else if (!shopCode) {
+    show("vCode");
+  } else {
+    show("vHome");
+  }
+})();
+</script>
+</body>
+</html>
